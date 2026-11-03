@@ -1,0 +1,138 @@
+name: Sync upstream and publish releases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+  push:
+    paths:
+      - '.github/workflows/upstream-sync-release.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: totk-upstream-sync-release
+  cancel-in-progress: false
+
+jobs:
+  sync-and-release:
+    name: Sync upstream and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      UPSTREAM_REPO: valentderah/totk-pc-recomp
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out fork main with history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge upstream main without discarding local automation
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream "https://github.com/$UPSTREAM_REPO.git"
+          git fetch --no-tags upstream main
+
+          upstream_sha="$(git rev-parse upstream/main)"
+          echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
+
+          if git merge-base --is-ancestor "$upstream_sha" HEAD; then
+            echo 'No upstream commit to merge.'
+          else
+            # Stop on conflicts; never force-push or overwrite local work.
+            git merge --no-commit --no-ff upstream/main
+            python3 tools/check_content.py --staged
+            git commit -m "Synchronize upstream at $upstream_sha"
+            git push origin HEAD:main
+          fi
+
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish one source snapshot per upstream revision
+        shell: bash
+        env:
+          UPSTREAM_SHA: ${{ steps.sync.outputs.upstream_sha }}
+          HEAD_SHA: ${{ steps.sync.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          short_sha="$(printf '%s' "$UPSTREAM_SHA" | cut -c1-12)"
+          tag="sync-$short_sha"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Source snapshot $tag already exists; nothing to publish."
+            exit 0
+          fi
+
+          cat > source-release-notes.md <<EOF
+          Source-only snapshot following upstream commit [$UPSTREAM_SHA](https://github.com/$UPSTREAM_REPO/commit/$UPSTREAM_SHA).
+
+          This is **not** a compiled Windows/Linux installer. Download the source archives attached automatically by GitHub.
+          The installers available under versioned upstream-mirror releases are built and published by the upstream project, not from this source snapshot.
+
+          No game files or console keys are distributed.
+          EOF
+
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$HEAD_SHA" \
+            --title "Upstream source sync $short_sha" \
+            --notes-file source-release-notes.md \
+            --prerelease
+
+      - name: Mirror latest official upstream installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/$UPSTREAM_REPO/releases/latest")"
+          tag="$(printf '%s' "$release_json" | jq -r '.tag_name // empty')"
+          if [ -z "$tag" ]; then
+            echo 'Upstream latest release has no tag.' >&2
+            exit 1
+          fi
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Upstream release $tag already mirrored."
+            exit 0
+          fi
+
+          # Preserve the original upstream version tag and its commit.
+          git fetch --no-tags upstream "refs/tags/$tag:refs/tags/$tag"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            git push origin "refs/tags/$tag"
+          fi
+
+          mkdir -p upstream-release
+          gh release download "$tag" --repo "$UPSTREAM_REPO" --dir upstream-release
+
+          mapfile -d '' assets < <(find upstream-release -maxdepth 1 -type f -print0 | sort -z)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "Upstream release $tag has no downloadable assets; not publishing an empty installer release." >&2
+            exit 1
+          fi
+
+          (cd upstream-release && sha256sum -- * > SHA256SUMS.txt)
+
+          cat > official-release-notes.md <<EOF
+          Mirror of the official [$UPSTREAM_REPO $tag](https://github.com/$UPSTREAM_REPO/releases/tag/$tag) installer assets.
+
+          **Windows and Linux installer binaries were built by the upstream maintainer and downloaded unchanged.**
+          They have not been rebuilt or independently tested by this repository.
+          See `SHA256SUMS.txt` for hashes of the mirrored files.
+
+          No game files or console keys are included. Players must supply their own legally obtained game files.
+          EOF
+
+          gh release create "$tag" "${assets[@]}" upstream-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "TotK Recomp $tag (upstream installer mirror)" \
+            --notes-file official-release-notes.md
