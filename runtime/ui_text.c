@@ -61,10 +61,10 @@ static const char *const text_en[UI_TEXT_COUNT] = {
     [UI_MENU_RENDER_SCALE_DESC] = "Size of the 3D scene relative to the game resolution; the game's FSR scales it to "
                                   "that size. Above 100 % smooths jagged edges (supersampling) at a high GPU cost.",
     [UI_MENU_RENDER_SCALE_GAME] = "Game (83 %)",
-    [UI_MENU_UPSCALER] = "Scaling to the window",
-    [UI_MENU_UPSCALER_DESC] = "How the picture is scaled when the window is larger than the game resolution. FSR keeps "
-                              "edges and detail sharper than bilinear.",
-    [UI_MENU_UPSCALER_FSR] = "AMD FSR 1", [UI_MENU_UPSCALER_BILINEAR] = "Bilinear",
+    [UI_MENU_UPSCALER] = "Upscaler",
+    [UI_MENU_UPSCALER_DESC] = "3D scene and window upscaler: NVIDIA DLSS 4.5, AMD FSR 4.1.2, AMD FSR 1.0, or Bilinear. "
+                              "Applies at once.",
+    [UI_MENU_UPSCALER_FSR] = "AMD FSR 1.0", [UI_MENU_UPSCALER_BILINEAR] = "Bilinear (Off)",
     [UI_MENU_ASPECT] = "Picture shape",
     [UI_MENU_ASPECT_DESC] = "When the window's shape differs from the game resolution's (a 16:9 picture on a 21:9 "
                             "screen): keep the picture's shape with black bars, or stretch it over the window.",
@@ -115,9 +115,12 @@ static const char *const text_en[UI_TEXT_COUNT] = {
     [UI_MENU_PCSS] = "Soft shadows",
     [UI_MENU_PCSS_DESC] = "Sun shadows sharp where an object meets the ground and softer the further the shadow falls "
                           "(PCSS). 0 keeps the game's filter. Takes effect at the next start.",
+    [UI_MENU_AO_MODE] = "Ambient Occlusion",
+    [UI_MENU_AO_MODE_DESC] = "Ambient shadow shading. Native is original game shading; SSAO enhances contact shading (50 %); "
+                             "HBAO generates deep horizon-based occlusion (100 %). Applies at once.",
     [UI_MENU_CONTACT_SHADOWS] = "Contact shadows",
     [UI_MENU_CONTACT_SHADOWS_DESC] = "Small sun shadows the shadow maps miss: at feet, under stones, in grass and creases. "
-                                     "Traced on the screen after lighting. Takes effect at the next start.",
+                                     "Traced on the screen after lighting. Applies at once.",
     [UI_MENU_SHADOW_RANGE] = "Shadow cascade range",
     [UI_MENU_SHADOW_RANGE_DESC] = "Moves the steps where shadows turn softer (the game's 20, 40, 80 and 160 m) further "
                                   "away. Spreads the shadow map over more ground: raise Shadow resolution with it. "
@@ -132,6 +135,36 @@ static const char *const text_en[UI_TEXT_COUNT] = {
                           "scale. Takes effect after a restart.",
     [UI_MENU_DLSS_DLAA] = "DLAA (native)", [UI_MENU_DLSS_QUALITY] = "Quality", [UI_MENU_DLSS_BALANCED] = "Balanced",
     [UI_MENU_DLSS_PERFORMANCE] = "Performance",
+    [UI_MENU_UPSCALE_PRESET] = "Upscaler quality preset",
+    [UI_MENU_UPSCALE_PRESET_DESC] = "Picks the 3D render scale for the upscaler (DLSS or AMD FSR): Quality 67 %, Balanced 58 %, "
+                                    "Performance 50 %, Ultra Performance 33 %, Native 100 %. It sets the DLSS mode and the 3D render "
+                                    "scale together. Takes effect after a restart.",
+    [UI_MENU_DLSS_MODEL] = "DLSS model",
+    [UI_MENU_DLSS_MODEL_DESC] = "Selects the neural model generation and preset. DLSS 4 (Preset K / J) is tuned for "
+                                "Native / Quality / Balanced; DLSS 4.5 (Preset M / L) is tuned for Performance (50 %) "
+                                "and Ultra Performance (33 %); DLSS 3 (Preset E / C) uses CNN. Quality presets guide "
+                                "this choice automatically, or you can override it manually at any time.",
+    [UI_MENU_FG_MODE] = "Frame Generation",
+    [UI_MENU_FG_MODE_DESC] = "Generates interpolated frames between rendered frames to multiply smoothness. "
+                             "NVIDIA DLSS Frame Gen supports Presets A / B / C and automatically enables NVIDIA Reflex "
+                             "(On + Boost). AMD FSR 3.1 Frame Gen works on all GPUs and pairs with AMD Anti-Lag 2. "
+                             "AMD FSR 4 AI Frame Gen uses RDNA 4 neural optical flow (requires AMD Radeon RX 9000 Series GPU) "
+                             "and automatically enables AMD Anti-Lag 2.",
+    [UI_MENU_FG_PRESET] = "DLSS Frame Gen preset",
+    [UI_MENU_FG_PRESET_DESC] = "Selects the NVIDIA DLSS Frame Generation neural profile: Preset A (Transformer optical "
+                               "flow, sharpest HUD & motion stability), Preset B (Balanced optical flow for fast camera "
+                               "pans), or Preset C (Low motion blur / ultra-clean disocclusion).",
+    [UI_MENU_FG_MULT] = "Frame Gen multiplier",
+    [UI_MENU_FG_MULT_DESC] = "Number of presented frames per rendered frame. 2x is supported on all Frame Gen GPUs "
+                             "(RTX 40 / 50 series and FSR Frame Gen). 4x and 6x Multi-Frame Generation (MFG) require "
+                             "an NVIDIA GeForce RTX 50 Series (Blackwell) GPU.",
+    [UI_MENU_REFLEX] = "NVIDIA Reflex Low Latency",
+    [UI_MENU_REFLEX_DESC] = "Synchronises CPU simulation and GPU submission via VK_NV_low_latency2 to eliminate the "
+                            "render queue and minimize input lag. Automatically guided to On + Boost when DLSS Frame "
+                            "Generation is enabled.",
+    [UI_MENU_ANTILAG2] = "AMD Anti-Lag 2",
+    [UI_MENU_ANTILAG2_DESC] = "Synchronises CPU frame pacing with GPU execution via VK_AMD_anti_lag to minimize click-to-photon "
+                              "latency. Automatically guided to On when AMD FSR 3.1 or FSR 4 AI Frame Generation is enabled.",
     [UI_MENU_FXAA] = "Game anti-aliasing (FXAA)",
     [UI_MENU_FXAA_DESC] = "The game's own FXAA edge smoothing. It blurs fine detail a little; with DLAA on it is not needed.",
 
